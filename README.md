@@ -13,7 +13,7 @@ source .venv/bin/activate
 pip install requirements.txt
 ```
 
-## Tutoriál pro zporovoznění mikrotiku skrze VirtualBox:
+## Tutoriál pro zprovoznění mikrotiku skrze VirtualBox:
   ```
   https://www.youtube.com/watch?v=0FStQTNAgi4
   ```
