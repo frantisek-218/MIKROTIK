@@ -1,6 +1,8 @@
 # **Mikrotik**
 
-Flask apka, dá se zapisovat do databáze, upravovat zápisy, mazat zápisy. Spojení se sentinelem již hotovo, data se zapisují do databáze. 
+Mikrotik Virtual machine RouterOS, připojení přes síťový most na virtual machine skrze WinBox.
+
+
 
 
 ## Příkazy:
@@ -11,6 +13,11 @@ source .venv/bin/activate
 pip install requirements.txt
 ```
 
+## Tutoriál pro zporovoznění mikrotiku skrze VirtualBox:
+  ```
+  https://www.youtube.com/watch?v=0FStQTNAgi4
+  ```
+
 ## Knihovny:
 
 **SQLAlchemy**
@@ -18,5 +25,7 @@ pip install requirements.txt
 
 
 ## Poznámky:
+Zatím jen randomIp generátor pro naplnění databáze mikrotiku, propojení.  
+Chybý Flask appka, frontend, edit address
+IP našeho mikrotiku: 10.57.10.111/24
 
-Připojil jsem client.py file. Jen nejde delete, jinak se ze sentinelu do databáze data zapisují. Dali jsme do toho dnes všechno... Autentifikace se tedy bude dělat nakonec. Ještě doděláme propojení s mikrotikem.
