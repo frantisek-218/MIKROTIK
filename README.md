@@ -25,7 +25,6 @@ pip install requirements.txt
 
 
 ## Poznámky:
-Zatím jen randomIp generátor pro naplnění databáze mikrotiku, propojení.  
-Chybý Flask appka, frontend, edit address
+Zatím jen randomIp generátor pro naplnění databáze mikrotiku, propojení, flask appka, frontend, edit ip adress.  
 IP našeho mikrotiku: 10.57.10.111/24
 
