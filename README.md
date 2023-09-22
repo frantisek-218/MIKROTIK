@@ -5,6 +5,7 @@ Mikrotik Virtual machine RouterOS, připojení přes síťový most na virtual m
 
 
 
+
 ## Příkazy:
 
 ``` 
@@ -22,6 +23,9 @@ pip install requirements.txt
 
 **SQLAlchemy**
 **Flask**
+
+## Hotovo:
+  Flask-appka(musí se dodělat api)| naplnění mikrotiku z https://view.sentinel.turris.cz/dynfw/ - chybí dodělat delete funkce| 
 
 
 ## Poznámky:
