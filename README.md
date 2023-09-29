@@ -13,7 +13,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install requirements.txt
 ```
+## Migrate příkazy:
 
+``` 
+flask db init
+flask db migrate
+flask db upgrade
+```
 ## Tutoriál pro zprovoznění mikrotiku skrze VirtualBox:
   ```
   https://www.youtube.com/watch?v=0FStQTNAgi4
