@@ -29,7 +29,8 @@ flask db upgrade
 
 **SQLAlchemy**
 **Flask**
-
+## API:
+**http://127.0.0.1:5000/swagger/v1**
 ## Hotovo:
   Flask-appka(musí se dodělat api)| naplnění mikrotiku z https://view.sentinel.turris.cz/dynfw/ - chybí dodělat delete funkce| 
 

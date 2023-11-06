@@ -8,7 +8,7 @@ from flask_appbuilder.security.manager import (
 )
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-
+FAB_ADD_SECURITY_API = True
 # Your App secret key
 SECRET_KEY = "{{secret_key}}"
 
@@ -24,10 +24,10 @@ CSRF_ENABLED = True
 # GLOBALS FOR APP Builder
 # ------------------------------
 # Uncomment to setup Your App name
-# APP_NAME = "My App Name"
+APP_NAME = "Mikrotik"
 
 # Uncomment to setup Setup an App icon
-# APP_ICON = "static/img/logo.jpg"
+APP_ICON = "Logo_skoly_SSPU.jpg"
 
 # ----------------------------------------------------
 # AUTHENTICATION CONFIG
@@ -80,6 +80,9 @@ LANGUAGES = {
     "ru": {"flag": "ru", "name": "Russian"},
     "pl": {"flag": "pl", "name": "Polish"},
 }
+
+
+FAB_API_SWAGGER_UI = True
 # ---------------------------------------------------
 # Image and file configuration
 # ---------------------------------------------------

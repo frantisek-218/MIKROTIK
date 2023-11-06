@@ -2,7 +2,7 @@ from flask import render_template
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder import ModelView, ModelRestApi
 from . import appbuilder, db 
-from .models import Machine, BlackList, WhiteList
+from .models import Machine, Blacklist, Whitelist
 from sqlalchemy.orm import relationship
 """
     Create your Model based REST API::
@@ -41,12 +41,12 @@ class AdressModelView(ModelView):
     list_columns = ['comment']
 
 class BlackListModelView(ModelView):
-    datamodel = SQLAInterface(BlackList)
+    datamodel = SQLAInterface(Blacklist)
     label_columns = {'Address':'Adresses'}
     list_columns = ['ip']
 
 class WhiteListModelView(ModelView):
-    datamodel = SQLAInterface(WhiteList)
+    datamodel = SQLAInterface(Whitelist)
     label_columns = {'Address':'Adresses'}
     list_columns = ['ip']
 
