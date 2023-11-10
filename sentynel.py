@@ -302,7 +302,7 @@ def fetch_server_ip_addresses(cert_url):
 def remove_unused_addresses_from_firewall(ipset, server_addresses):
     # Get the addresses currently in the MikroTik firewall
     firewall_addresses = ipset.get_addresses()
-
+    
     # Find addresses to remove (present in firewall but not in the server)
     addresses_to_remove = set(firewall_addresses) - set(server_addresses)
 
@@ -314,6 +314,7 @@ def remove_unused_addresses_from_firewall(ipset, server_addresses):
     ipset.commit()
 
     return len(addresses_to_remove)
+
 
 
 def main():
