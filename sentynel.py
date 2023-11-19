@@ -17,7 +17,7 @@ from zmq.utils.monitor import recv_monitor_message
 logger = logging.getLogger("sentinel_dynfw_client")
 
 SERVER_CERT_URL = "https://repo.turris.cz/sentinel/dynfw.pub"
-SERVER_CERT_PATH_DEFAULT = "/var/run/dynfw_server.pub"
+SERVER_CERT_PATH_DEFAULT = r"C:\Users\frant\Desktop\fravojt\MIKROTIK\var\run\dynfw.pub"
 CLIENT_CERT_PATH = "./dynfw"
 
 TOPIC_DYNFW_DELTA = "dynfw/delta"
@@ -77,7 +77,6 @@ def wait_for_connection(socket):
     monitor.close()
 
 
-
 class Ipset:
     def __init__(self, name):
         self.name = name
@@ -93,21 +92,36 @@ class Ipset:
             logger.warning("IP address skipped as it is not IPv4: %s", ip)
 
     def del_ip(self, ip):
-        if self.regexp.fullmatch(ip):
-            # Construct the appropriate command for removal
-            self.commands.append('address-list remove address={} list={}\n'.format(ip, self.name))
-            self.addresses.remove(ip)  # Track removed address
-        else:
-            logger.warning("IP address removal skipped as it is not IPv4: %s", ip)
+        if ip in self.addresses:
+            # Remove the IP address from the set
+            self.addresses.remove(ip)
+            try:
+                # Create a connection to the RouterOS device
+                connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728,
+                                                          plaintext_login=True)
+                api = connection.get_api()
 
-    def reset(self):
-        self.commands.append('create {} hash:ip family inet hashsize 1024 maxelem 65536\n'.format(self.name))
-        self.commands.append('flush {}\n'.format(self.name))
+                # Send the command to the RouterOS device to remove the address
+                api.get_resource('/ip/firewall/address-list').call('remove', {
+                    'address': ip.encode('utf-8'),  # Encode as bytes
+                    'list': self.name.encode('utf-8')  # Encode as bytes
+                })
+
+                print(f"Removed IP {ip} from the address list")
+
+            except routeros_api.exceptions.RouterOsApiCommunicationError as e:
+                logger.error("Error removing address from the list: %s", str(e))
+            finally:
+                if connection:
+                    connection.disconnect()
+        else:
+            logger.warning("IP address not found in the list: %s", ip)
 
     def commit(self):
         try:
             # Create a connection to the RouterOS device
-            connection = routeros_api.RouterOsApiPool('10.57.10.111', username='admin', password='admin', port=8728, plaintext_login=True)
+            connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728,
+                                                      plaintext_login=True)
             api = connection.get_api()
 
             # Iterate over the commands and send them to the RouterOS device
@@ -145,9 +159,12 @@ class Ipset:
             if connection:
                 connection.disconnect()
 
+    def reset(self):
+        self.commands.append('create {} hash:ip family inet hashsize 1024 maxelem 65536\n'.format(self.name))
+        self.commands.append('flush {}\n'.format(self.name))
+        self.addresses = set()  # Reset tracked addresses
     def get_addresses(self):
         return list(self.addresses)  # Return tracked addresses
-
 
 
 def create_zmq_socket(context, server_public_file):
@@ -212,29 +229,46 @@ class Serial:
 
 
 class DynfwList:
-    def __init__(self, socket, dynfw_ipset_name):
+    def __init__(self, socket, dynfw_ipset_name, api):
         self.socket = socket
         self.serial = Serial(MISSING_UPDATE_CNT_LIMIT)
         self.ipset = Ipset(dynfw_ipset_name)
         self.socket.setsockopt(zmq.SUBSCRIBE, TOPIC_DYNFW_LIST.encode('utf-8'))
+        self.api = api
+
+
+
+
+
 
     def handle_delta(self, msg):
         for key in REQUIRED_DELTA_KEYS:
             if key not in msg:
                 raise InvalidMsgError("missing delta key {}".format(key))
         if not self.serial.update_ok(msg["serial"]):
-            logger.debug("going to reload the whole list")
-            self.socket.setsockopt(zmq.UNSUBSCRIBE, TOPIC_DYNFW_DELTA.encode('utf-8'))
-            self.socket.setsockopt(zmq.SUBSCRIBE, TOPIC_DYNFW_LIST.encode('utf-8'))
+            logger.debug("Serial out of order, skipping delta update")
             return
         if msg["delta"] == "positive":
             self.ipset.add_ip(msg["ip"])
             logger.debug("DELTA message: +%s, serial %d", msg["ip"], msg["serial"])
         elif msg["delta"] == "negative":
-            self.ipset.del_ip(msg["ip"])
+            self.remove_ips(msg["ip"])
             logger.debug("DELTA message: -%s, serial %d", msg["ip"], msg["serial"])
         self.ipset.commit()
+    def remove_ips(self, ips_to_remove):
+        list_resource = self.api.get_resource('/ip/firewall/address-list')
+        ipToDelete = ips_to_remove
+        i = 0
 
+        pole = list_resource.get()
+        for prvek in pole:
+            if prvek['address'] == ipToDelete:
+                break
+            i += 1
+        print(list_resource.get()[i]['id'])
+        print(list_resource.get()[i]['address'])
+        idToDelete = list_resource.get()[i]['id']
+        list_resource.remove(id=idToDelete)
     def handle_list(self, msg):
         for key in REQUIRED_LIST_KEYS:
             if key not in msg:
@@ -290,6 +324,7 @@ def configure_logging(debug: bool):
     if debug:
         logger.setLevel(logging.DEBUG)
 
+
 def fetch_server_ip_addresses(cert_url):
     try:
         with urllib.request.urlopen(cert_url) as urlf:
@@ -298,24 +333,6 @@ def fetch_server_ip_addresses(cert_url):
     except urllib.error.URLError as exc:
         logger.error("Unable to fetch server IP addresses: %s", exc.reason)
         return []
-
-def remove_unused_addresses_from_firewall(ipset, server_addresses):
-    # Get the addresses currently in the MikroTik firewall
-    firewall_addresses = ipset.get_addresses()
-    
-    # Find addresses to remove (present in firewall but not in the server)
-    addresses_to_remove = set(firewall_addresses) - set(server_addresses)
-
-    # Remove the addresses from the MikroTik firewall
-    for address in addresses_to_remove:
-        ipset.del_ip(address)
-
-    # Commit the changes
-    ipset.commit()
-
-    return len(addresses_to_remove)
-
-
 
 def main():
     args = parse_args()
@@ -328,8 +345,14 @@ def main():
     socket = create_zmq_socket(context, args.cert)
     socket.connect("tcp://{}:{}".format(args.server, args.port))
     wait_for_connection(socket)
-    dynfw_list = DynfwList(socket, args.ipset)
-    
+
+    # Create a connection to the RouterOS device
+    api_connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728,
+                                                  plaintext_login=True)
+    api = api_connection.get_api()
+
+    dynfw_list = DynfwList(socket, args.ipset, api)
+
     server_addresses = []  # Initialize with an empty list
 
     while True:
@@ -343,16 +366,11 @@ def main():
             elif topic == TOPIC_DYNFW_DELTA:
                 dynfw_list.handle_delta(payload)
             else:
-                logger.warning("received unknown topic: %s", topic)
+                logger.warning("Unknown message topic: %s", topic)
         except InvalidMsgError as e:
-            logger.error("Invalid message: %s", e)
-
-        # Fetch the latest server IP addresses and remove unused addresses from the firewall
-        removed_count = remove_unused_addresses_from_firewall(dynfw_list.ipset, server_addresses)
-        logger.info("Removed %d unused addresses from the firewall.", removed_count)
-
-        # Add any other processing or sleep logic as needed
+            logger.warning("Invalid message received: %s", e)
 
 if __name__ == "__main__":
     main()
+
 

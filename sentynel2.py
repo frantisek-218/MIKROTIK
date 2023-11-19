@@ -10,6 +10,7 @@ import time
 import urllib.request
 import msgpack
 import zmq
+import routeros_api
 import zmq.auth
 from zmq.utils.monitor import recv_monitor_message
 
@@ -18,7 +19,7 @@ logger = logging.getLogger("sentinel_dynfw_client")
 SERVER_CERT_URL = "https://repo.turris.cz/sentinel/dynfw.pub"
 SERVER_CERT_PATH_DEFAULT = "/var/run/dynfw_server.pub"
 CLIENT_CERT_PATH = "./dynfw"
-
+r"C:\Users\frant\Desktop\fravojt\MIKROTIK\var\run\dynfw.pub"
 TOPIC_DYNFW_DELTA = "dynfw/delta"
 TOPIC_DYNFW_LIST = "dynfw/list"
 
@@ -81,42 +82,71 @@ class Ipset:
         self.name = name
         self.regexp = re.compile(RE_IPV4)
         self.commands = []
+        self.addresses = set()  # Track addresses
 
     def add_ip(self, ip):
         if self.regexp.fullmatch(ip):
             self.commands.append('add {} {}\n'.format(self.name, ip))
+            self.addresses.add(ip)  # Track added address
         else:
             logger.warning("IP address skipped as it is not IPv4: %s", ip)
 
     def del_ip(self, ip):
         if self.regexp.fullmatch(ip):
-            self.commands.append('del {} {}\n'.format(self.name, ip))
+            # Construct the appropriate command for removal
+            self.commands.append('address-list remove address={} list={}\n'.format(ip, self.name))
+            self.addresses.remove(ip)  # Track removed address
         else:
             logger.warning("IP address removal skipped as it is not IPv4: %s", ip)
 
     def reset(self):
-        self.commands.append('create {} hash:ip -exist\n'.format(self.name))
+        self.commands.append('create {} hash:ip family inet hashsize 1024 maxelem 65536\n'.format(self.name))
         self.commands.append('flush {}\n'.format(self.name))
 
     def commit(self):
         try:
-            print(self.commands)
-            #p = subprocess.Popen(['/usr/sbin/ipset', 'restore'], stdin=subprocess.PIPE)
-            #for cmd in self.commands:
-            #    p.stdin.write(cmd.encode('utf-8'))
-            #p.stdin.close()
-            #p.wait()
-            self.commands = []
-            #if p.returncode != 0:
-            #    logger.warning("Error running ipset command: return code %d.", p.returncode)
+            # Create a connection to the RouterOS device
+            connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728,
+                                                      plaintext_login=True)
+            api = connection.get_api()
+
+            # Iterate over the commands and send them to the RouterOS device
+            for cmd in self.commands:
+                try:
+                    parts = cmd.split()
+                    if len(parts) == 3 and parts[0] in ['add', 'remove']:
+                        ip_address = parts[2]
+                        action = 'add' if parts[0] == 'add' else 'remove'
+
+                        # Send the command to the RouterOS device
+                        api.get_binary_resource('/ip/firewall/address-list').call(action, {
+                            'address': ip_address.encode('utf-8'),  # Encode as bytes
+                            'list': self.name.encode('utf-8')  # Encode as bytes
+                        })
+                except routeros_api.exceptions.RouterOsApiCommunicationError as e:
+                    if "failure: already have such entry" in str(e):
+                        logger.warning("Address already exists in the list: %s", cmd)
+                    elif "failure: entry not found" in str(e):
+                        logger.warning("Address not found in the list: %s", cmd)
+                    else:
+                        logger.error("Error modifying address list: %s", str(e))
+
+            self.commands = []  # Reset commands
+
+            print("Commit called. Sending commands to MikroTik firewall.")
+
         except (PermissionError, FileNotFoundError) as e:
-            # these errors are permanent, i.e., they won't disappear upon next run
             logger.critical("Can't run ipset command: %s.", str(e))
             print("Can't run ipset command: {}.".format(str(e)), file=sys.stderr)
             sys.exit(1)
         except OSError as e:
-            # the rest of OSError should be temporary, e.g., ChildProcessError or BrokenPipeError
             logger.warning("Error running ipset command: %s.", str(e))
+        finally:
+            if connection:
+                connection.disconnect()
+
+    def get_addresses(self):
+        return list(self.addresses)  # Return tracked addresses
 
 
 def create_zmq_socket(context, server_public_file):
@@ -260,30 +290,68 @@ def configure_logging(debug: bool):
         logger.setLevel(logging.DEBUG)
 
 
+def fetch_server_ip_addresses(cert_url):
+    try:
+        with urllib.request.urlopen(cert_url) as urlf:
+            ip_addresses = urlf.read().decode('utf-8').split('\n')
+        return ip_addresses
+    except urllib.error.URLError as exc:
+        logger.error("Unable to fetch server IP addresses: %s", exc.reason)
+        return []
+
+
+def remove_unused_addresses_from_firewall(ipset, server_addresses):
+    # Get the addresses currently in the MikroTik firewall
+    firewall_addresses = ipset.get_addresses()
+
+    # Find addresses to remove (present in firewall but not in the server)
+    addresses_to_remove = set(firewall_addresses) - set(server_addresses)
+
+    # Remove the addresses from the MikroTik firewall
+    for address in addresses_to_remove:
+        ipset.del_ip(address)
+
+    # Commit the changes
+    ipset.commit()
+
+    return len(addresses_to_remove)
+
+
 def main():
     args = parse_args()
     configure_logging(args.verbose)
 
     if args.renew:
-        renew_server_certificate(args.cert_url, args.cert)
+        server_addresses = renew_server_certificate(args.cert_url, args.cert)
 
     context = zmq.Context()
     socket = create_zmq_socket(context, args.cert)
     socket.connect("tcp://{}:{}".format(args.server, args.port))
     wait_for_connection(socket)
     dynfw_list = DynfwList(socket, args.ipset)
+
+    server_addresses = []  # Initialize with an empty list
+
     while True:
         msg = socket.recv_multipart()
         try:
             topic, payload = parse_msg(msg)
             if topic == TOPIC_DYNFW_LIST:
                 dynfw_list.handle_list(payload)
+                # Update server addresses when the list is received from the server
+                server_addresses = payload.get('list', [])
             elif topic == TOPIC_DYNFW_DELTA:
                 dynfw_list.handle_delta(payload)
             else:
                 logger.warning("received unknown topic: %s", topic)
         except InvalidMsgError as e:
             logger.error("Invalid message: %s", e)
+
+        # Fetch the latest server IP addresses and remove unused addresses from the firewall
+        removed_count = remove_unused_addresses_from_firewall(dynfw_list.ipset, server_addresses)
+        logger.info("Removed %d unused addresses from the firewall.", removed_count)
+
+        # Add any other processing or sleep logic as needed
 
 
 if __name__ == "__main__":
