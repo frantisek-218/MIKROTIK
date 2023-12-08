@@ -2,8 +2,8 @@
 #!/usr/bin/python
 
 import routeros_api
-
-connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728, plaintext_login=True )
+ip4='10.57.10.111'
+connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728, plaintext_login=True )
 api = connection.get_api()
 list_queues = api.get_resource('/ip/firewall/address-list')
 

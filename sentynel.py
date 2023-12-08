@@ -13,11 +13,16 @@ import zmq
 import routeros_api
 import zmq.auth
 from zmq.utils.monitor import recv_monitor_message
+import time
+import queue   
+import threading
 
 logger = logging.getLogger("sentinel_dynfw_client")
 
+ip4 = '10.57.10.111'
+
 SERVER_CERT_URL = "https://repo.turris.cz/sentinel/dynfw.pub"
-SERVER_CERT_PATH_DEFAULT = r"C:\Users\frant\Desktop\fravojt\MIKROTIK\var\run\dynfw.pub"
+SERVER_CERT_PATH_DEFAULT = "var/run/dynfw.pub"
 CLIENT_CERT_PATH = "./dynfw"
 
 TOPIC_DYNFW_DELTA = "dynfw/delta"
@@ -97,7 +102,7 @@ class Ipset:
             self.addresses.remove(ip)
             try:
                 # Create a connection to the RouterOS device
-                connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728,
+                connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
                                                           plaintext_login=True)
                 api = connection.get_api()
 
@@ -120,7 +125,7 @@ class Ipset:
     def commit(self):
         try:
             # Create a connection to the RouterOS device
-            connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728,
+            connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
                                                       plaintext_login=True)
             api = connection.get_api()
 
@@ -218,6 +223,7 @@ class Serial:
                 return False
             if len(self.received_out_of_order) > self.missing_limit:
                 logger.debug("too many missed messages")
+                print("Moc messages v hajzlu nevim co delat")
                 return False
             self.received_out_of_order.add(serial)
             return True
@@ -265,8 +271,6 @@ class DynfwList:
             if prvek['address'] == ipToDelete:
                 break
             i += 1
-        print(list_resource.get()[i]['id'])
-        print(list_resource.get()[i]['address'])
         idToDelete = list_resource.get()[i]['id']
         list_resource.remove(id=idToDelete)
     def handle_list(self, msg):
@@ -324,6 +328,8 @@ def configure_logging(debug: bool):
     if debug:
         logger.setLevel(logging.DEBUG)
 
+        
+
 
 def fetch_server_ip_addresses(cert_url):
     try:
@@ -337,7 +343,6 @@ def fetch_server_ip_addresses(cert_url):
 def main():
     args = parse_args()
     configure_logging(args.verbose)
-
     if args.renew:
         server_addresses = renew_server_certificate(args.cert_url, args.cert)
 
@@ -347,7 +352,7 @@ def main():
     wait_for_connection(socket)
 
     # Create a connection to the RouterOS device
-    api_connection = routeros_api.RouterOsApiPool('192.168.0.222', username='admin', password='admin', port=8728,
+    api_connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
                                                   plaintext_login=True)
     api = api_connection.get_api()
 
@@ -355,22 +360,49 @@ def main():
 
     server_addresses = []  # Initialize with an empty list
 
+    # Set the maximum duration in seconds for update functions
+    max_update_duration = 6000000000  # for example, 1 hour
+
+    start_time = time.time()
+
+    # Create and register the poller object
+    poller = zmq.Poller()
+    poller.register(socket, zmq.POLLIN)
+
     while True:
-        msg = socket.recv_multipart()
-        try:
-            topic, payload = parse_msg(msg)
-            if topic == TOPIC_DYNFW_LIST:
-                dynfw_list.handle_list(payload)
-                # Update server addresses when the list is received from the server
-                server_addresses = payload.get('list', [])
-            elif topic == TOPIC_DYNFW_DELTA:
-                dynfw_list.handle_delta(payload)
-            else:
-                logger.warning("Unknown message topic: %s", topic)
-        except InvalidMsgError as e:
-            logger.warning("Invalid message received: %s", e)
+        elapsed_time = time.time() - start_time
+
+        if elapsed_time >= max_update_duration:
+            print(f"Max update duration ({max_update_duration} seconds) reached. Exiting the loop.")
+            break
+
+        socks = dict(poller.poll(100000))  # Timeout in milliseconds
+
+        if socket in socks and socks[socket] == zmq.POLLIN:
+            try:
+                msg = socket.recv_multipart()
+                topic, payload = parse_msg(msg)
+                if topic == TOPIC_DYNFW_LIST:
+                    dynfw_list.handle_list(payload)
+                    server_addresses = payload.get('list', [])
+                elif topic == TOPIC_DYNFW_DELTA:
+                    dynfw_list.handle_delta(payload)
+                else:
+                    logger.warning("Unknown message topic: %s", topic)
+
+                # Update elapsed time only during the execution of update functions
+                elapsed_time = time.time() - start_time
+            except InvalidMsgError as e:
+                logger.warning("Invalid message received: %s", e)
+        else:
+            print("No message received within the timeout.")
+
+    # ... (any additional cleanup or actions if needed)
 
 if __name__ == "__main__":
     main()
+
+
+
 
 
