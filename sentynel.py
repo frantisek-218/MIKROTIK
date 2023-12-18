@@ -19,10 +19,10 @@ import threading
 
 logger = logging.getLogger("sentinel_dynfw_client")
 
-ip4 = '10.57.10.111'
+ip4 = '192.168.0.222'
 
 SERVER_CERT_URL = "https://repo.turris.cz/sentinel/dynfw.pub"
-SERVER_CERT_PATH_DEFAULT = "var/run/dynfw.pub"
+SERVER_CERT_PATH_DEFAULT = r"C:\Users\frant\Desktop\PROJEKTOS\MIKROTIK\var\run\dynfw.pub"
 CLIENT_CERT_PATH = "./dynfw"
 
 TOPIC_DYNFW_DELTA = "dynfw/delta"
@@ -41,7 +41,7 @@ REQUIRED_LIST_KEYS = (
 # Source: https://riptutorial.com/regex/example/14146/match-an-ip-address
 RE_IPV4 = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 
-MISSING_UPDATE_CNT_LIMIT = 10
+MISSING_UPDATE_CNT_LIMIT = 10000
 
 
 def renew_server_certificate(cert_url, cert_path):
@@ -261,18 +261,25 @@ class DynfwList:
             self.remove_ips(msg["ip"])
             logger.debug("DELTA message: -%s, serial %d", msg["ip"], msg["serial"])
         self.ipset.commit()
+
     def remove_ips(self, ips_to_remove):
         list_resource = self.api.get_resource('/ip/firewall/address-list')
-        ipToDelete = ips_to_remove
-        i = 0
+        ip_to_delete = ips_to_remove
 
-        pole = list_resource.get()
-        for prvek in pole:
-            if prvek['address'] == ipToDelete:
-                break
-            i += 1
-        idToDelete = list_resource.get()[i]['id']
-        list_resource.remove(id=idToDelete)
+        # Get the list of addresses from the RouterOS device
+        address_list = list_resource.get()
+
+        # Find the index of the IP address to delete
+        index_to_delete = next((i for i, item in enumerate(address_list) if item['address'] == ip_to_delete), None)
+
+        # If the IP address is found, proceed with removal
+        if index_to_delete is not None:
+            id_to_delete = address_list[index_to_delete]['id']
+            list_resource.remove(id=id_to_delete)
+            print(f"Removed IP {ip_to_delete} from the address list")
+        else:
+            logger.warning("IP address not found in the list: %s", ip_to_delete)
+
     def handle_list(self, msg):
         for key in REQUIRED_LIST_KEYS:
             if key not in msg:
