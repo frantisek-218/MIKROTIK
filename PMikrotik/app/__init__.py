@@ -4,6 +4,8 @@ from flask import Flask
 from flask_appbuilder import AppBuilder, SQLA
 from flask_migrate import Migrate
 from flask_restful import Api
+from app.index import MyIndexView
+
 """
  Logging configuration
 """
@@ -16,7 +18,7 @@ app = Flask(__name__)
 app.config.from_object("config")
 db = SQLA(app)
 migrate = Migrate(app, db)
-appbuilder = AppBuilder(app, db.session)
+appbuilder = AppBuilder(app, db.session, indexview=MyIndexView)
 
 """
 from sqlalchemy.engine import Engine

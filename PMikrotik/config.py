@@ -24,10 +24,10 @@ CSRF_ENABLED = True
 # GLOBALS FOR APP Builder
 # ------------------------------
 # Uncomment to setup Your App name
-APP_NAME = "Mikrotik"
+APP_NAME = "Dynamic firewall"
 
 # Uncomment to setup Setup an App icon
-APP_ICON = "Logo_skoly_SSPU.jpg"
+#APP_ICON = "/static/img/logo.jpg"
 
 # ----------------------------------------------------
 # AUTHENTICATION CONFIG

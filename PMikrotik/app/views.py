@@ -1,6 +1,6 @@
-from flask import render_template
+from flask import render_template,flash
 from flask_appbuilder.models.sqla.interface import SQLAInterface
-from flask_appbuilder import ModelView, ModelRestApi
+from flask_appbuilder import ModelView, ModelRestApi, SimpleFormView
 from . import appbuilder, db 
 from .models import Machine, Blacklist, Whitelist
 from sqlalchemy.orm import relationship
@@ -35,7 +35,7 @@ from sqlalchemy.orm import relationship
 """
     Application wide 404 error handler
 """
-class AdressModelView(ModelView):
+class MachineModelView(ModelView):
     datamodel = SQLAInterface(Machine)
     label_columns = {'Name':'name'}
     list_columns = ['comment']
@@ -49,6 +49,16 @@ class WhiteListModelView(ModelView):
     datamodel = SQLAInterface(Whitelist)
     label_columns = {'Address':'Adresses'}
     list_columns = ['ip']
+class GlobalWhiteListModelView(ModelView):
+    datamodel = SQLAInterface(Whitelist)
+    label_columns = {'Address':'Adresses'}
+    list_columns = ['ip']
+class GlobalBlackListModelView(ModelView):
+    datamodel = SQLAInterface(Blacklist)
+    label_columns = {'Address':'Adresses'}
+    list_columns = ['ip']
+
+
 
 @appbuilder.app.errorhandler(404)
 def page_not_found(e):
@@ -62,11 +72,17 @@ def page_not_found(e):
 
 db.create_all()
 appbuilder.add_view(
-    WhiteListModelView, "White list", icon="fa-folder-open-o", category="mikrodick"
+    WhiteListModelView, "White list", icon="fa-folder-open-o", category="Lists"
 )
 appbuilder.add_view(
-    BlackListModelView, "Black list", icon="fa-folder-open-o", category="mikrodick"
+    BlackListModelView, "Black list", icon="fa-folder-open-o", category="Lists"
 )
 appbuilder.add_view(
-    AdressModelView, "Sentinel", icon="fa-folder-open-o", category="mikrodick"
+    MachineModelView, "Machine list", icon="fa-folder-open-o", category="Lists"
+)
+appbuilder.add_view(
+    GlobalWhiteListModelView, "Global white list", icon="fa-folder-open-o", category="Lists"
+)
+appbuilder.add_view(
+    GlobalBlackListModelView, "Global black list", icon="fa-folder-open-o", category="Lists"
 )
