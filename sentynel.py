@@ -43,7 +43,6 @@ RE_IPV4 = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][
 
 MISSING_UPDATE_CNT_LIMIT = 10000
 
-
 def renew_server_certificate(cert_url, cert_path):
     logger.info("Renewing server certificate")
     delay = 1
@@ -122,6 +121,25 @@ class Ipset:
         else:
             logger.warning("IP address not found in the list: %s", ip)
 
+    def delete_all_addresses(self):
+        connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
+                                                  plaintext_login=True)
+        api = connection.get_api()
+        list_queues = api.get_resource('/ip/firewall/address-list')
+
+        pole = list_queues.get()
+        for prvek in pole:
+            print(prvek)
+            list_queues.remove(id=prvek['id'])
+
+            print(id)
+        connection.disconnect()
+
+        # otestovat rychlost zápisu cca 10K ip adress
+        # mazání přes ID - otestovat 10K
+        # Otestovat rychlost výpisu 10k záznamů
+
+        connection.disconnect()
     def commit(self):
         try:
             # Create a connection to the RouterOS device
@@ -285,7 +303,7 @@ class DynfwList:
             if key not in msg:
                 raise InvalidMsgError("missing list key {}".format(key))
         self.serial.reset(msg["serial"])
-        self.ipset.reset()
+        self.ipset.delete_all_addresses()  # Delete all addresses before filling the list
         for ip in msg["list"]:
             self.ipset.add_ip(ip)
         self.ipset.commit()
