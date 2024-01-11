@@ -67,7 +67,6 @@ class MachineModelApi(ModelRestApi):
     resource_name = "machine"
     datamodel = SQLAInterface(Machine)
     allow_browser_login = True
-
     search_filters = {"name": [CustomFilter]}
 
 
@@ -116,5 +115,6 @@ appbuilder.add_api(MachineModelApi)
 appbuilder.add_api(GlobalWhiteListModelApi)
 appbuilder.add_api(WhitelistModelApi)
 appbuilder.add_api(BlacklistModelApi)
+appbuilder.add_api(GlobalBlackListModelApi)
 appbuilder.add_api(MachineModelApi)
 appbuilder.add_api(GreetingApi)

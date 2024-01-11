@@ -2,7 +2,7 @@ from flask import render_template,flash
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_appbuilder import ModelView, ModelRestApi, SimpleFormView
 from . import appbuilder, db 
-from .models import Machine, Blacklist, Whitelist
+from .models import Machine, Blacklist, Whitelist,GlobalBlackList,GlobalWhiteList
 from sqlalchemy.orm import relationship
 """
     Create your Model based REST API::
@@ -37,26 +37,26 @@ from sqlalchemy.orm import relationship
 """
 class MachineModelView(ModelView):
     datamodel = SQLAInterface(Machine)
-    label_columns = {'Name':'name'}
-    list_columns = ['comment']
+    label_columns = {'Name':'Name'}
+    list_columns = ['name','comment']
 
 class BlackListModelView(ModelView):
     datamodel = SQLAInterface(Blacklist)
     label_columns = {'Address':'Adresses'}
-    list_columns = ['ip']
+    list_columns = ['id','ip']
 
 class WhiteListModelView(ModelView):
     datamodel = SQLAInterface(Whitelist)
     label_columns = {'Address':'Adresses'}
-    list_columns = ['ip']
+    list_columns = ['id','ip']
 class GlobalWhiteListModelView(ModelView):
-    datamodel = SQLAInterface(Whitelist)
+    datamodel = SQLAInterface(GlobalWhiteList)
     label_columns = {'Address':'Adresses'}
-    list_columns = ['ip']
+    list_columns = ['id','ip']
 class GlobalBlackListModelView(ModelView):
-    datamodel = SQLAInterface(Blacklist)
+    datamodel = SQLAInterface(GlobalBlackList)
     label_columns = {'Address':'Adresses'}
-    list_columns = ['ip']
+    list_columns = ['id','ip']
 
 
 
