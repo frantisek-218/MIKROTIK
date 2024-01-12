@@ -4,15 +4,14 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile
     volumes:
       - type: bind
         source: app/static
         target: /app/static
       - "./:/app:z"
       - "/etc/localtime:/etc/localtime:ro"
-    command: gunicorn run:app --bind 0.0.0.0:8000
+#    command: gunicorn run:app --docker bind 0.0.0.0:8080
     ports:
-      - 8000:8000
+      - 8080:8080
     environment:
       SQLALCHEMY_DATABASE_URI: 'sqlite:///app.db'
