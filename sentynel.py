@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import argparse
 import logging
 import os
@@ -14,15 +12,23 @@ import routeros_api
 import zmq.auth
 from zmq.utils.monitor import recv_monitor_message
 import time
-import queue   
+import queue
 import threading
 
 logger = logging.getLogger("sentinel_dynfw_client")
-
+#nastavte IP MikroTiku
 ip4 = '192.168.0.222'
+#nastavte username MikroTiku
+username = 'admin'
+#nastavte heslo MikroTiku
+password = 'admin'
+#nastavte počet přijmutých pokynu MQTT, před resetem routeru
+MISSING_UPDATE_CNT_LIMIT = 10000
+
 
 SERVER_CERT_URL = "https://repo.turris.cz/sentinel/dynfw.pub"
-SERVER_CERT_PATH_DEFAULT = r"C:\Users\frant\Desktop\PROJEKTOS\MIKROTIK\var\run\dynfw.pub"
+#nastavte cestu k dynfw.pub - Je to certifikat pro komunikaci s Turris MQTT
+SERVER_CERT_PATH_DEFAULT = r"C:\Users\františek\Desktop\MikrotikProject\MIKROTIK\var\run\dynfw.pub"
 CLIENT_CERT_PATH = "./dynfw"
 
 TOPIC_DYNFW_DELTA = "dynfw/delta"
@@ -41,7 +47,8 @@ REQUIRED_LIST_KEYS = (
 # Source: https://riptutorial.com/regex/example/14146/match-an-ip-address
 RE_IPV4 = r"^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$"
 
-MISSING_UPDATE_CNT_LIMIT = 10000
+
+
 
 def renew_server_certificate(cert_url, cert_path):
     logger.info("Renewing server certificate")
@@ -101,7 +108,7 @@ class Ipset:
             self.addresses.remove(ip)
             try:
                 # Create a connection to the RouterOS device
-                connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
+                connection = routeros_api.RouterOsApiPool(ip4, username=username, password=password, port=8728,
                                                           plaintext_login=True)
                 api = connection.get_api()
 
@@ -122,7 +129,7 @@ class Ipset:
             logger.warning("IP address not found in the list: %s", ip)
 
     def delete_all_addresses(self):
-        connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
+        connection = routeros_api.RouterOsApiPool(ip4, username=username, password=password, port=8728,
                                                   plaintext_login=True)
         api = connection.get_api()
         list_queues = api.get_resource('/ip/firewall/address-list')
@@ -134,16 +141,12 @@ class Ipset:
 
             print(id)
         connection.disconnect()
-
-        # otestovat rychlost zápisu cca 10K ip adress
-        # mazání přes ID - otestovat 10K
-        # Otestovat rychlost výpisu 10k záznamů
-
         connection.disconnect()
+
     def commit(self):
         try:
             # Create a connection to the RouterOS device
-            connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
+            connection = routeros_api.RouterOsApiPool(ip4, username=username, password=password, port=8728,
                                                       plaintext_login=True)
             api = connection.get_api()
 
@@ -186,6 +189,7 @@ class Ipset:
         self.commands.append('create {} hash:ip family inet hashsize 1024 maxelem 65536\n'.format(self.name))
         self.commands.append('flush {}\n'.format(self.name))
         self.addresses = set()  # Reset tracked addresses
+
     def get_addresses(self):
         return list(self.addresses)  # Return tracked addresses
 
@@ -259,11 +263,6 @@ class DynfwList:
         self.ipset = Ipset(dynfw_ipset_name)
         self.socket.setsockopt(zmq.SUBSCRIBE, TOPIC_DYNFW_LIST.encode('utf-8'))
         self.api = api
-
-
-
-
-
 
     def handle_delta(self, msg):
         for key in REQUIRED_DELTA_KEYS:
@@ -353,8 +352,6 @@ def configure_logging(debug: bool):
     if debug:
         logger.setLevel(logging.DEBUG)
 
-        
-
 
 def fetch_server_ip_addresses(cert_url):
     try:
@@ -364,6 +361,7 @@ def fetch_server_ip_addresses(cert_url):
     except urllib.error.URLError as exc:
         logger.error("Unable to fetch server IP addresses: %s", exc.reason)
         return []
+
 
 def main():
     args = parse_args()
@@ -377,7 +375,7 @@ def main():
     wait_for_connection(socket)
 
     # Create a connection to the RouterOS device
-    api_connection = routeros_api.RouterOsApiPool(ip4, username='admin', password='admin', port=8728,
+    api_connection = routeros_api.RouterOsApiPool(ip4, username=username, password=password, port=8728,
                                                   plaintext_login=True)
     api = api_connection.get_api()
 
@@ -386,7 +384,7 @@ def main():
     server_addresses = []  # Initialize with an empty list
 
     # Set the maximum duration in seconds for update functions
-    max_update_duration = 6000000000  # for example, 1 hour
+    max_update_duration = 6000000000
 
     start_time = time.time()
 
@@ -424,10 +422,6 @@ def main():
 
     # ... (any additional cleanup or actions if needed)
 
+
 if __name__ == "__main__":
     main()
-
-
-
-
-
