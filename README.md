@@ -23,7 +23,7 @@ flask db init
 flask db migrate
 flask db upgrade
 ```
-## Tutoriál pro zprovoznění mikrotiku skrze VirtualBox:
+## Tutoriál pro zprovoznění MikroTiku skrze VirtualBox:
   ```
   https://www.youtube.com/watch?v=0FStQTNAgi4
   ```
