@@ -11,7 +11,7 @@ Mikrotik Virtual machine RouterOS, připojení přes síťový most na virtual m
 ``` 
 python3 -m venv .venv
 source .venv/bin/activate
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 ## Migrate příkazy:
 
@@ -32,10 +32,9 @@ flask db upgrade
 ## API:
 **http://127.0.0.1:5000/swagger/v1**
 ## Hotovo:
-  Flask-appka(musí se dodělat api)| naplnění mikrotiku z https://view.sentinel.turris.cz/dynfw/ - chybí dodělat delete funkce| 
+  Flask-appka(musí se dodělat api)| naplnění mikrotiku z https://view.sentinel.turris.cz/dynfw/ 
 
 
 ## Poznámky:
-Zatím jen randomIp generátor pro naplnění databáze mikrotiku, propojení, flask appka, frontend, edit ip adress.  
-IP našeho mikrotiku: 10.57.10.111/24
+
 
