@@ -1,4 +1,4 @@
-# Sentinel DynFW Client
+# Sentinel DynFW Client for MikroTik
 
 This is a Python script that serves as a client for Turris Sentinel Dynamic Firewall (DynFW) and is created for MikroTik router purposes. It communicates with a Turris Sentinel server using ZeroMQ, fetches server certificates, and manages IP addresses in a MikroTik RouterOS device.
 
