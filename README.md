@@ -1,22 +1,16 @@
-# **Mikrotik**
-
-Mikrotik Virtual machine RouterOS, připojení přes síťový most na virtual machine skrze WinBox.
-
 # Sentinel DynFW Client
 
 This is a Python script that serves as a client for Turris Sentinel Dynamic Firewall (DynFW). It communicates with a Turris Sentinel server using ZeroMQ, fetches server certificates, and manages IP addresses in a MikroTik RouterOS device.
 
 
-
-
-## Příkazy:
+## Commands:
 
 ``` 
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
-## Migrate příkazy:
+## Migrate commands:
 
 ``` 
 flask db init
